@@ -42,13 +42,14 @@ class EncodeView(View):
     async def post(self, request):
         body = json.loads(request.body)
         video_id = body['video_id']
+        logger.info(f"body['resolution'] {body['resolution']}")
         resolution = body['resolution']
         format = body['format']
         if not video_id or (not resolution and not format):
             return JsonResponse({'success': False, 'message': '필수 항목을 입력해주세요.'}, status=400)
-        output_video_id = sync_to_async(Video.objects.create)()
-        asyncio.create_task(utils.process_video(input_video_id=video_id, output_video_id=output_video_id, resolution=resolution, format=format))
-
+        output_video_id = (await sync_to_async(Video.objects.create)()).id
+        asyncio.ensure_future(utils.process_video(input_video_id=video_id, output_video_id=output_video_id, resolution=resolution, format=format))
+        logger.info(f"Returning JsonResponse")
         return JsonResponse({'success': True, 'video_id':output_video_id, 'message': '인코딩 작업을 시작합니다.'})
 
 class FrameView(View):

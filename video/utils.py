@@ -9,6 +9,7 @@ import asyncio
 
 logger = logging.getLogger('django.server')
 
+
 def get_video_resolution(video_path):
     cap = cv2.VideoCapture(video_path)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -17,11 +18,13 @@ def get_video_resolution(video_path):
     return width, height
 
 async def process_video(input_video_id, output_video_id, resolution, format):
+    await asyncio.sleep(1)
     input_video = await sync_to_async(Video.objects.get)(id=input_video_id)
-    resolution = resolution if resolution else input_video.resolution,
+    resolution = resolution if resolution else input_video.resolution
     format = format if format else input_video.format
     input_path = os.path.join(settings.MEDIA_ROOT, f"{input_video.id}.{input_video.format}")
     output_path = os.path.join(settings.MEDIA_ROOT, f'{output_video_id}.{format}')
+
 
     cap = cv2.VideoCapture(input_path)
     if format == 'mp4':
@@ -31,9 +34,15 @@ async def process_video(input_video_id, output_video_id, resolution, format):
     else:
         await send_sse_message(output_video_id, False, "지원하지 않는 포맷입니다.")
         await sync_to_async(Video.objects.filter(id=output_video_id).delete)()
+        return
+    logger.info(f"resolution = {resolution}")
 
     width, height = resolution.split('x')
-    out = cv2.VideoWriter(output_path, fourcc, 30, (width, height))
+    out = await sync_to_async(cv2.VideoWriter)(
+        filename=output_path,
+        fourcc=fourcc,
+        fps=cap.get(cv2.CAP_PROP_FPS),
+        frameSize=(int(width), int(height)))
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -49,7 +58,7 @@ async def process_video(input_video_id, output_video_id, resolution, format):
         format=format,
         resolution=resolution
     )
-    await send_sse_message(output_video.id, True, "비디오 인코딩이 완료되었습니다.")
+    await send_sse_message(output_video_id, True, "비디오 인코딩이 완료되었습니다.")
 
 async def send_sse_message(video_id, success, message=None):
     channel_layer = get_channel_layer()
