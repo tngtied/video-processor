@@ -1,11 +1,14 @@
-from .models import Video
 import os
-from django.conf import settings
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync, sync_to_async
 import cv2
 import logging
 import asyncio
+
+from django.conf import settings
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync, sync_to_async
+
+from .models import Video
 
 logger = logging.getLogger('django.server')
 
